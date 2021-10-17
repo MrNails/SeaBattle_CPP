@@ -1,12 +1,14 @@
 #include "Field.h"
 
+int Field::_globalId = 0;
+
 void Field::InitializaField()
 {
 	_cells = new Cell * [_width * _height];
 
 	for (size_t i = 0; i < _height; i++)
 		for (size_t j = 0; j < _width; j++)
-			_cells[_height * i + j] = new Cell(new Position(i, j), CellStatus::Empty);
+			_cells[_height * i + j] = new Cell(new Position(j, i), CellStatus::Empty);
 
 
 	_ships = new Ship * [_maxShipAmount];
@@ -115,6 +117,8 @@ Field::Field(const Field& field)
 
 	for (size_t i = 0; i < _maxShipAmount; i++)
 		_ships[i] = new Ship(*field._ships[i]);
+
+	_id = field._id;
 }
 
 Field::Field(const int width, const int height, FieldType type)
@@ -125,6 +129,8 @@ Field::Field(const int width, const int height, FieldType type)
 
 	_currentShipAmount = 0;
 	_maxShipAmount = DEFAULT_SHIPS_AMOUNT;
+
+	_id = ++_globalId;
 
 	InitializaField();
 }
@@ -166,6 +172,11 @@ int Field::GetWidth() const
 int Field::GetHeight() const
 {
 	return _height;
+}
+
+int Field::GetId() const
+{
+	return _id;
 }
 
 FieldType Field::GetFieldType() const
@@ -227,8 +238,8 @@ bool Field::TryAddShip(Ship* ship)
 		auto cell = ship->GetBody()[i];
 		auto cellPos = cell->GetPosition();
 
-		auto previousCell = _cells[_width * cellPos->y + cellPos->x];
-		_cells[_width * cellPos->y + cellPos->x] = cell;
+		auto previousCell = _cells[_height * cellPos->y + cellPos->x];
+		_cells[_height * cellPos->y + cellPos->x] = cell;
 
 #if _DEBUG
 		std::cout << "Previous cell status: " << GetCellStatusAsString(previousCell->GetStatus()) << std::endl;

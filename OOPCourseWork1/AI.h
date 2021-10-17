@@ -2,6 +2,11 @@
 #include <list>
 #include "Field.h"
 
+#if _DEBUG
+
+#endif // _DEBUG
+
+
 class AI
 {
 private:
@@ -16,6 +21,10 @@ private:
 
 #if _DEBUG
 	static int _globalId;
+
+	int allEntries,
+		gameEntries;
+
 	int _id;
 #endif // _DEBUG
 
@@ -29,6 +38,6 @@ public:
 	AI();
 
 	void SetCurrentField(Field* field);
-	bool DoMove();
+	ShotResult DoMove();
 };
 

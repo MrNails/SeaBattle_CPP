@@ -61,107 +61,27 @@ void FillField(Field& field);
 /// <returns>Символ для отрисовки клетки</returns>
 char GetCellSkin(CellStatus status, FieldType type);
 
-Position* ParsePosFromText(char* coord)
-{
-	char posX = tolower(coord[1]), posY = coord[0];
+Position* ParsePosFromText(char* coord);
 
-	return new Position(posX - '0', posY - 'a');
-}
+void PvAIMode();
+void AIvAIMode();
 
 int main()
 {
-	Field player(FIELD_SIZE, FIELD_SIZE, FieldType::Spectator);
-	Field enemy(FIELD_SIZE, FIELD_SIZE, FieldType::Spectator);
-
-	AI ai1, ai2;
-
-	auto offsetPlayer = new Position(0, 0),
-		offsetEnemy = new Position(FIELD_SIZE + FIELD_X_OFFSET, 0);
-
 	srand(time(0));
+
+	int gameMode = -1;
+
+	auto checkGameMode = [](const int& arg) { return arg > 0 && arg < 3; };
+
+	InputWrapper<int>(std::cin, "Availables game mode:\n\t1 - Player vs AI\n\t2 - AI vs AI\nSelect game mode: ", "Error game mode selection.\n", gameMode, checkGameMode);
 
 	SetCursorVisibility(false, consoleHandle);
 
-	std::cout << "Creating fields...\n";
-
-	FillField(player);
-	FillField(enemy);
-
-	system("cls");
-
-	char* currPos = new char[] { -1, -1, '\0' };
-	bool exit = false;
-
-	auto checkPos = [](const char* pos)
-	{
-		return (pos[0] <= 'j' && pos[0] >= 'a') && (pos[1] <= '9' && pos[1] >= '0');
-	};
-
-	ai1.SetCurrentField(&player);
-	ai2.SetCurrentField(&enemy);
-
-	while (!exit)
-	{
-		if (player.AllShipsDestroyed())
-		{
-			system("cls");
-			enemy.SetFieldType(FieldType::Player);
-
-			SetConsoleCursorPosition(consoleHandle, { 0 });
-			DrawField(offsetPlayer, player);
-			DrawField(offsetEnemy, enemy);
-
-			std::cout << "You lose!\n";
-			break;
-		}
-		else if (enemy.AllShipsDestroyed())
-		{
-			SetConsoleCursorPosition(consoleHandle, { 0 });
-			DrawField(offsetEnemy, enemy);
-			std::cout << "You win!\n";
-			break;
-		}
-
-		CONSOLE_SCREEN_BUFFER_INFO screen;;
-
-		GetConsoleScreenBufferInfo(consoleHandle, &screen);
-
-		SetConsoleCursorPosition(consoleHandle, { 0 });
-		DrawField(offsetPlayer, player);
-		DrawField(offsetEnemy, enemy);
-
-		if (screen.dwCursorPosition.Y != 0)
-		{
-			SetConsoleCursorPosition(consoleHandle, screen.dwCursorPosition);
-		}
-
-		//ClearConsole(consoleHandle, { 0, FIELD_SIZE + 4 });
-
-		Sleep(500);
-
-		//InputWrapper(std::cin, "Enter shoot coord: ", "Error input position\n", currPos, 2, checkPos);
-
-		//auto shootRes = player.ShootToCell(ParsePosFromText(currPos));
-
-		//while (shootRes == ShotResult::AlreadyDestroyed || shootRes == ShotResult::AlreadyHitted)
-		//{
-		//	std::cout << "Your already hitted to this coord. Choose other cell.\n";
-		//	InputWrapper(std::cin, "Enter shoot coord: ", "Error input position\n", currPos, 2, checkPos);
-
-		//	shootRes = player.ShootToCell(ParsePosFromText(currPos));
-		//}
-
-		//if (ai1.DoMove())
-		//{
-		//	std::cout << "AI used all his tries. Game was bugged.\n";
-		//	return 1;
-		//}
-
-		//ai1.DoMove();
-		ai2.DoMove();
-
-		//system("cls");
-	}
+	if (gameMode == 1)
+		PvAIMode();
+	else if (gameMode == 2)
+		AIvAIMode();
 
 	system("pause");
 
@@ -235,6 +155,13 @@ void ClearConsole(HANDLE consoleHandle, COORD offset)
 		consoleHandle, ' ', screen.dwSize.X * screen.dwSize.Y, offset, &written
 	);
 	SetConsoleCursorPosition(consoleHandle, offset);
+}
+
+Position* ParsePosFromText(char* coord)
+{
+	char posX = tolower(coord[1]), posY = coord[0];
+
+	return new Position(posX - '0', posY - 'a');
 }
 
 void SetCursorVisibility(bool visibility, HANDLE consoleHandle)
@@ -325,6 +252,16 @@ void DrawField(const Position* offset, const Field& field)
 
 		currentOffsetY++;
 	}
+
+	COORD coord = { offset->x, offset->y + currentOffsetY };
+
+	SetConsoleCursorPosition(consoleHandle, coord);
+	if (field.GetFieldType() == FieldType::Player)
+	{
+		std::cout << "You\n";
+	}
+	else
+		std::cout << "Player " << field.GetId() << std::endl;
 }
 
 void FillField(Field& field)
@@ -411,5 +348,186 @@ void FillField(Field& field)
 		currentAddedShipAmount++;
 
 		ship = nullptr;
+	}
+}
+
+void AIvAIMode()
+{
+	auto offsetPlayer = new Position(0, 0),
+		offsetEnemy = new Position(FIELD_SIZE + FIELD_X_OFFSET, 0);
+
+	Field ai1Field(FIELD_SIZE, FIELD_SIZE, FieldType::Spectator);
+	Field ai2Field(FIELD_SIZE, FIELD_SIZE, FieldType::Spectator);
+	CONSOLE_SCREEN_BUFFER_INFO screen;
+	AI ai1, ai2;
+
+	int movePossibility = 0;
+
+	std::cout << "Creating fields...\n";
+
+	FillField(ai1Field);
+	FillField(ai2Field);
+
+	system("cls");
+
+	bool exit = false;
+
+	ai1.SetCurrentField(&ai2Field);
+	ai2.SetCurrentField(&ai1Field);
+
+	while (!exit)
+	{
+		GetConsoleScreenBufferInfo(consoleHandle, &screen);
+
+		SetConsoleCursorPosition(consoleHandle, { 0 });
+		DrawField(offsetPlayer, ai1Field);
+		DrawField(offsetEnemy, ai2Field);
+
+		if (screen.dwCursorPosition.Y != 0)
+			SetConsoleCursorPosition(consoleHandle, screen.dwCursorPosition);
+
+		if (ai1Field.AllShipsDestroyed())
+		{
+			std::cout << "Player 1 won this game!\n";
+			break;
+		}
+		else if (ai2Field.AllShipsDestroyed())
+		{
+			std::cout << "Player 2 won this game!\n";
+			break;
+		}
+
+		ClearConsole(consoleHandle, { 0, FIELD_SIZE + 5 });
+
+		if (movePossibility == 0 || movePossibility == 1) 
+		{
+			std::cout << "Player 1 move.\n";
+			Sleep(500);
+			auto ai1MoveResult = ai1.DoMove();
+
+			if (ai1MoveResult == ShotResult::Hitted || ai1MoveResult == ShotResult::Destroyed ||
+				ai1MoveResult == ShotResult::AlreadyDestroyed || ai1MoveResult == ShotResult::AlreadyHitted)
+				movePossibility = 1;
+			else if (ai1MoveResult == ShotResult::Missed)
+				movePossibility = 2;
+		}
+		else
+		{
+			std::cout << "Player 2 move.\n";
+			Sleep(500);
+			auto ai2MoveResult = ai2.DoMove();
+
+			if (ai2MoveResult == ShotResult::Hitted || ai2MoveResult == ShotResult::Destroyed ||
+				ai2MoveResult == ShotResult::AlreadyDestroyed || ai2MoveResult == ShotResult::AlreadyHitted)
+				movePossibility = 2;
+			else
+				movePossibility = 0;
+		}
+	}
+}
+
+void PvAIMode()
+{
+	auto offsetPlayer = new Position(0, 0),
+		offsetEnemy = new Position(FIELD_SIZE + FIELD_X_OFFSET, 0);
+
+	Field player(FIELD_SIZE, FIELD_SIZE, FieldType::Player);
+	Field enemy(FIELD_SIZE, FIELD_SIZE, FieldType::Enemy);
+	CONSOLE_SCREEN_BUFFER_INFO screen;
+	AI ai1;
+	
+	int movePossibility = 0;
+
+	std::cout << "Creating fields...\n";
+
+	FillField(player);
+	FillField(enemy);
+
+	system("cls");
+
+	char* currPos = new char[] { -1, -1, '\0' };
+	bool exit = false;
+
+	auto checkPos = [](const char* pos)
+	{
+		return (pos[0] <= 'j' && pos[0] >= 'a') && (pos[1] <= '9' && pos[1] >= '0');
+	};
+
+	ai1.SetCurrentField(&player);
+
+	while (!exit)
+	{
+		CONSOLE_SCREEN_BUFFER_INFO screen;;
+
+		GetConsoleScreenBufferInfo(consoleHandle, &screen);
+
+		SetConsoleCursorPosition(consoleHandle, { 0 });
+		DrawField(offsetPlayer, player);
+		DrawField(offsetEnemy, enemy);
+
+		if (screen.dwCursorPosition.Y != 0)
+			SetConsoleCursorPosition(consoleHandle, screen.dwCursorPosition);
+
+		if (player.AllShipsDestroyed())
+		{
+			enemy.SetFieldType(FieldType::Player);
+
+			SetConsoleCursorPosition(consoleHandle, { 0 });
+			DrawField(offsetEnemy, enemy);
+
+			std::cout << "You lose!\n";
+			break;
+		}
+		else if (enemy.AllShipsDestroyed())
+		{
+			std::cout << "You win!\n";
+			break;
+		}
+
+		GetConsoleScreenBufferInfo(consoleHandle, &screen);
+
+		SetConsoleCursorPosition(consoleHandle, { 0 });
+		DrawField(offsetPlayer, player);
+		DrawField(offsetEnemy, enemy);
+
+		if (screen.dwCursorPosition.Y != 0)
+		{
+			SetConsoleCursorPosition(consoleHandle, screen.dwCursorPosition);
+		}
+
+		ClearConsole(consoleHandle, { 0, FIELD_SIZE + 5 });
+
+		if (movePossibility == 0 || movePossibility == 1)
+		{
+			std::cout << "You move\n";
+			InputWrapper(std::cin, "Enter shoot coord: ", "Error input position\n", currPos, 2, checkPos);
+
+			auto shootRes = player.ShootToCell(ParsePosFromText(currPos));
+
+			while (shootRes == ShotResult::AlreadyDestroyed || shootRes == ShotResult::AlreadyHitted)
+			{
+				std::cout << "Your already hitted to this coord. Choose other cell.\n";
+				InputWrapper(std::cin, "Enter shoot coord: ", "Error input position\n", currPos, 2, checkPos);
+
+				shootRes = player.ShootToCell(ParsePosFromText(currPos));
+			}
+
+			if (shootRes == ShotResult::Missed)
+				movePossibility = 2;
+			else
+				movePossibility = 1;
+		}
+		else
+		{
+			std::cout << "Player 2 move.\n";
+			Sleep(700);
+			auto ai1MoveResult = ai1.DoMove();
+
+			if (ai1MoveResult == ShotResult::Hitted || ai1MoveResult == ShotResult::Destroyed ||
+				ai1MoveResult == ShotResult::AlreadyDestroyed || ai1MoveResult == ShotResult::AlreadyHitted)
+				movePossibility = 2;
+			else
+				movePossibility = 0;
+		}
 	}
 }

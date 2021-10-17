@@ -49,9 +49,11 @@ enum class ShotResult
 class Field
 {
 private:
+	static int _globalId;
+
 	Cell** _cells;
 	Ship** _ships;
-	int _width, _height, _currentShipAmount, _maxShipAmount;
+	int _width, _height, _currentShipAmount, _maxShipAmount, _id;
 	FieldType _type;
 
 	void InitializaField();
@@ -70,6 +72,7 @@ public:
 
 	int GetWidth() const;
 	int GetHeight() const;
+	int GetId() const;
 	FieldType GetFieldType() const;
 
 	Cell** GetField() const;

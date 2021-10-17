@@ -5,6 +5,7 @@ int AI::_globalId = 0;
 #endif // _DEBUG
 
 
+
 void AI::ResetRotationBarArr()
 {
 	for (size_t i = 0; i < DIRECTION_AMOUNT; i++)
@@ -33,6 +34,8 @@ AI::AI()
 
 #if _DEBUG
 	_id = AI::_globalId++;
+	allEntries = 0;
+	gameEntries = 0;
 #endif // _DEBUG
 
 }
@@ -52,10 +55,37 @@ void AI::SetCurrentField(Field* field)
 		_availablePositions.push_back(field->GetField()[i]);
 }
 
-bool AI::DoMove()
+const char* GetShotResultAsString(ShotResult res)
+{
+	switch (res)
+	{
+	case ShotResult::Empty:
+		return "Empty";
+	case ShotResult::OutOfField:
+		return "OutOfField";
+	case ShotResult::Missed:
+		return "Missed";
+	case ShotResult::Hitted:
+		return "Hitted";
+	case ShotResult::Destroyed:
+		return "Destroyed";
+	case ShotResult::AlreadyDestroyed:
+		return "AlreadyDestroyed";
+	case ShotResult::AlreadyHitted:
+		return "AlreadyHitted";
+	default:
+		return "Empty";
+	}
+}
+
+ShotResult AI::DoMove()
 {
 	if (_availablePositions.empty())
-		return false;
+		return ShotResult::Empty;
+
+#if _DEBUG
+	gameEntries++;
+#endif // _DEBUG
 
 	if (_previousShotResult == ShotResult::Empty || _previousShotResult == ShotResult::Destroyed ||
 		((_previousShotResult == ShotResult::Missed || _previousShotResult == ShotResult::AlreadyHitted) && _currentAttackableShip.size() == 1))
@@ -75,7 +105,10 @@ bool AI::DoMove()
 
 		auto randPos = (*itr);
 
-		std::cout << "Random shot: " << randPos->GetPosition()->x << ";" << randPos->GetPosition()->y << std::endl;
+#if _DEBUG
+		std::cout << "Shot res = " << GetShotResultAsString(_previousShotResult) << ". Random shot: " << randPos->GetPosition()->x << ";" << randPos->GetPosition()->y << std::endl;
+		allEntries++;
+#endif // _DEBUG
 
 		_previousShotResult = _field->ShootToCell(randPos->GetPosition());
 		_currentAttackableShip.push_back(new Position(*randPos->GetPosition()));
@@ -86,14 +119,10 @@ bool AI::DoMove()
 		Position* temp = nullptr;
 
 		std::list<int> directionList;
-		if (!_rotationBanArr[0])
-			directionList.push_back(0);
-		if (!_rotationBanArr[1])
-			directionList.push_back(1);
-		if (!_rotationBanArr[2])
-			directionList.push_back(2);
-		if (!_rotationBanArr[3])
-			directionList.push_back(3);
+
+		for (size_t i = 0; i < DIRECTION_AMOUNT; i++)
+			if (!_rotationBanArr[i])
+				directionList.push_back(i);
 
 		auto lastPos = _currentAttackableShip.back();
 
@@ -116,7 +145,12 @@ bool AI::DoMove()
 						//Ќаправлени€ расположены по два в друг за другом поэтому если текущее направление €вл€етс€ 0
 						//(0 % 2 = 0), то можно прибавить 1. ≈сли же направление €вл€тс€ 1 (1 % 2 = 1), то можно отн€ть 1.
 						//ƒл€ всех последующих направление работает така€ же схема (2 % 2 = 0) -> 1 и (3 % 2 = 1) -> -1.
-						_rotationBanArr[i + (i % 2 == 0 ? 1 : -1)] = false;
+						int calculatedIndex = i + (i % 2 == 0 ? 1 : -1);
+
+						_rotationBanArr[calculatedIndex] = false;
+
+						directionList.clear();
+						directionList.push_back(calculatedIndex);
 
 						lastPos = *_currentAttackableShip.begin();
 						break;
@@ -175,7 +209,10 @@ bool AI::DoMove()
 
 			_previousShotResult = _field->ShootToCell(temp);
 
-			std::cout << "Shot to specified ship: " << temp->x << ";" << temp->y << std::endl;
+#if _DEBUG
+			std::cout << "Shot res = " << GetShotResultAsString(_previousShotResult) << ". Shot to specified ship: " << temp->x << ";" << temp->y << std::endl;
+			allEntries++;
+#endif // _DEBUG
 
 			if (_previousShotResult == ShotResult::AlreadyHitted)
 			{
@@ -183,6 +220,13 @@ bool AI::DoMove()
 				temp = nullptr;
 
 				int rotation = *itr;
+
+				if (directionList.size() == 1)
+				{
+					int evaluatedIndex = rotation + (rotation % 2 == 0 ? 1 : -1);
+					_rotationBanArr[evaluatedIndex] = false;
+					directionList.push_back(evaluatedIndex);
+				}
 
 				_rotationBanArr[rotation] = true;
 
@@ -202,12 +246,10 @@ bool AI::DoMove()
 
 				_rotationBanArr[*itr] = false;
 			}
-			else if (_previousShotResult == ShotResult::Destroyed)
-				std::cout << "Destroyed\n";
 
 			break;
 		}
 	}
 
-	return true;
+	return _previousShotResult;
 }
