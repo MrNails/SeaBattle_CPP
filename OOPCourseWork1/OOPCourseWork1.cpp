@@ -199,9 +199,9 @@ char GetCellSkin(CellStatus status, FieldType type)
 	case CellStatus::DeckDestroyed:
 		return DECK_DESTROYED_SMBL;
 	case CellStatus::MissedShot:
-		if (type == FieldType::Player)
-			return EMPTY_FIELD_SMBL;
-		else
+		//if (type == FieldType::Player)
+		//	return EMPTY_FIELD_SMBL;
+		//else
 			return MISSED_SHOT_SMBL;
 	default:
 		return '\0';
@@ -437,6 +437,7 @@ void PvAIMode()
 	AI ai1;
 	
 	int movePossibility = 0;
+	bool shipDestroyed = false;
 
 	std::cout << "Creating fields...\n";
 
@@ -457,6 +458,7 @@ void PvAIMode()
 
 	while (!exit)
 	{
+
 		CONSOLE_SCREEN_BUFFER_INFO screen;;
 
 		GetConsoleScreenBufferInfo(consoleHandle, &screen);
@@ -499,18 +501,26 @@ void PvAIMode()
 
 		if (movePossibility == 0 || movePossibility == 1)
 		{
+			if (shipDestroyed)
+				std::cout << "You destroyed enemy ship!\n";
+
 			std::cout << "You move\n";
 			InputWrapper(std::cin, "Enter shoot coord: ", "Error input position\n", currPos, 2, checkPos);
 
-			auto shootRes = player.ShootToCell(ParsePosFromText(currPos));
+			auto shootRes = enemy.ShootToCell(ParsePosFromText(currPos));
 
 			while (shootRes == ShotResult::AlreadyDestroyed || shootRes == ShotResult::AlreadyHitted)
 			{
 				std::cout << "Your already hitted to this coord. Choose other cell.\n";
 				InputWrapper(std::cin, "Enter shoot coord: ", "Error input position\n", currPos, 2, checkPos);
 
-				shootRes = player.ShootToCell(ParsePosFromText(currPos));
+				shootRes = enemy.ShootToCell(ParsePosFromText(currPos));
 			}
+
+			if (shootRes == ShotResult::Destroyed)
+				shipDestroyed = true;
+			else
+				shipDestroyed = false;
 
 			if (shootRes == ShotResult::Missed)
 				movePossibility = 2;
